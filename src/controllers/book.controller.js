@@ -56,10 +56,15 @@ const borrowBook = async (req, res) => {
         $push: { borrowedBooks: book.id },
       }
     );
-    await Book.updateOne(
-      { _id: book.id },
-      { $set: { borrowedBy: user.id, borrowed: true } }
-    );
+    if (book.borrowedBy == null) {
+      await Book.updateOne(
+        { _id: book.id },
+        { $set: { borrowedBy: user.id, borrowed: true } }
+      );
+    } else {
+      res.status(400).json({ message: "Book already borrowed" });
+      return;
+    }
 
     res.status(202).json({ message: "Successfully borrowed" });
   } catch (error) {
@@ -73,15 +78,20 @@ const returnBook = async (req, res) => {
     const user = res.user;
 
     await User.updateOne(
-      { _id: user.id },
+      { _id: user.id, borrowedBooks: { $in: [book.id] } },
       {
         $pull: { borrowedBooks: book.id },
       }
     );
-    await Book.updateOne(
-      { _id: book.id },
-      { $set: { borrowedBy: null, borrowed: false } }
-    );
+
+    if (book.borrowedBy != null) {
+      await Book.updateOne(
+        { _id: book.id },
+        { $set: { borrowedBy: null, borrowed: false } }
+      );
+    } else {
+      res.status(400).json({ message: "Book already returned" });
+    }
 
     res.status(202).json({ message: "Successfully returned" });
   } catch (error) {
